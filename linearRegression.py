@@ -68,7 +68,7 @@ for alpha in alphas:
     # Başlangıç ağırlıklarını sıfır olarak atama
     initial_theta = np.zeros(X_train_final.shape[1])
 
-    # Modeli eğitimi
+    # Model eğitimi
     final_theta, cost_history = gradient_descent(X_train_final, y_train, initial_theta, alpha=alpha)
 
     results[alpha] = {'theta': final_theta, 'cost_history': cost_history}
