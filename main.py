@@ -146,46 +146,61 @@ def calculate_metrics_from_cm(matrix, classes):
         
     return metrics
 
-df = pd.read_csv('FishtrainDATA.csv')
-X_data = df.drop('Species', axis=1)
-y_data = df['Species'].values
-classes = pd.Series(y_data).unique()
+train_df = pd.read_csv('FishtrainDATA.csv') 
+test_df = pd.read_csv('FishtestDATA.csv')
 
-folds = get_k_fold_indices(len(df), k=10)
+
+X_train_full = train_df.drop('Species', axis=1)
+y_train_full = train_df['Species'].values
+classes = pd.Series(y_train_full).unique()
+
+X_test_final = test_df.drop('Species', axis=1)
+y_test_final = test_df['Species'].values
+
+folds = get_k_fold_indices(len(train_df), k=10)
 
 all_accuracies = []
 all_f1_scores = {c: [] for c in classes}
 all_precisions = {c: [] for c in classes}
 all_recalls = {c: [] for c in classes}
 
-for i, (train_idx, test_idx) in enumerate(folds):
-    print(f"--- Fold {i+1} ---")
-
-    X_train, y_train = X_data.iloc[train_idx], y_data[train_idx]
-    X_test, y_test = X_data.iloc[test_idx], y_data[test_idx]
-
-    tree = build_tree(X_train, y_train, max_depth=5)
-
-    y_pred = predict(tree, X_test)
-
-    cm = create_confusion_matrix(y_test, y_pred, classes)
-    metrics = calculate_metrics_from_cm(cm, classes)
+for i, (train_idx, val_idx) in enumerate(folds):
+    X_train_fold, y_train_fold = X_train_full.iloc[train_idx], y_train_full[train_idx]
+    X_val_fold, y_val_fold = X_train_full.iloc[val_idx], y_train_full[val_idx]
     
-    all_accuracies.append(metrics['Accuracy'])
+    tree = build_tree(X_train_fold, y_train_fold, max_depth=5)
+    
+
+    y_pred_fold = predict(tree, X_val_fold)
+    cm_fold = create_confusion_matrix(y_val_fold, y_pred_fold, classes)
+    metrics_fold = calculate_metrics_from_cm(cm_fold, classes)
+    
+
+    all_accuracies.append(metrics_fold['Accuracy'])
     for c in classes:
-        all_f1_scores[c].append(metrics[c]['F1-Score'])
-        all_precisions[c].append(metrics[c]['Precision'])
-        all_recalls[c].append(metrics[c]['Recall'])
+        all_f1_scores[c].append(metrics_fold[c]['F1-Score'])
+        all_precisions[c].append(metrics_fold[c]['Precision'])
+        all_recalls[c].append(metrics_fold[c]['Recall'])
+
+print(f"10-Fold CV Ortalama Accuracy: {sum(all_accuracies) / 10:.4f}\n")
 
 
-print("\n=== 10-FOLD CROSS VALIDATION ORTALAMA SONUÇLARI ===")
-print(f"Genel Ortalama Accuracy: {sum(all_accuracies) / 10:.4f}")
+final_tree = build_tree(X_train_full, y_train_full, max_depth=5)
+
+y_pred_final = predict(final_tree, X_test_final)
+
+
+final_cm = create_confusion_matrix(y_test_final, y_pred_final, classes)
+final_metrics = calculate_metrics_from_cm(final_cm, classes)
+
+print(f"Genel Test Accuracy: {final_metrics['Accuracy']:.4f}")
 
 for c in classes:
-    avg_f1 = sum(all_f1_scores[c]) / 10
-    avg_prec = sum(all_precisions[c]) / 10
-    avg_rec = sum(all_recalls[c]) / 10
     print(f"\nSınıf: {c}")
-    print(f"  Ortalama Precision: {avg_prec:.4f}")
-    print(f"  Ortalama Recall:    {avg_rec:.4f}")
-    print(f"  Ortalama F1-Score:  {avg_f1:.4f}")
+    print(f"  Precision: {final_metrics[c]['Precision']:.4f}")
+    print(f"  Recall:    {final_metrics[c]['Recall']:.4f}")
+    print(f"  F1-Score:  {final_metrics[c]['F1-Score']:.4f}")
+    
+print("\nKarmaşıklık Matrisi (Confusion Matrix):")
+for true_class in classes:
+    print(f"Gerçek {true_class} için tahminler: {final_cm[true_class]}")
